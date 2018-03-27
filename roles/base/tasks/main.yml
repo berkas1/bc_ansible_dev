@@ -100,6 +100,32 @@
   become: true
   shell: pip3 install --upgrade mqtt2influxdb
 
+- name: Setting up correct .npm folder owner
+  become: true
+  file:
+    path: /home/{{ ansible_user_id }}/.npm
+    owner: "{{ ansible_user_id }}"
+
+- name: Setting up correct .npm folder owner
+  become: true
+  file:
+    path: /usr/lib/node_modules
+    owner: "{{ ansible_user_id }}"
+
+- name: Adding .npm/bin to path
+  shell: echo "PATH=/home/{{ ansible_user_id }}/.npm/vendor/node_modules/bin:$PATH" >> /home/{{ ansible_user_id }}/.bashrc
+
+- name: Sourcing bashrc
+  shell: source /home/{{ ansible_user_id }}/.bashrc
+  args:
+    executable: /bin/bash
+
+- name: NPM cache clear
+  shell: npm cache clear --force && npm install --no-shrinkwrap --update-binary 
+
+- name: NPM prefix settings
+  shell: npm config set prefix "/home/{{ ansible_user_id }}/.npm/vendor/node_modules"
+
 - name: Installing pm2
   shell: npm install pm2 -g
 
@@ -119,7 +145,7 @@
   shell: mqtt2influxdb -c /etc/bigclown/mqtt2influxdb.yml --test
 
 - name: Starting mqtt
-  shell: pm2 start `which python3` --name "mqtt2influxdb" -- `which mqtt2influxdb` -c /etc/bigclown/mqtt2influxdb.yml
+  shell: /home/{{ ansible_user_id }}/.npm/vendor/node_modules/bin/pm2 start `which python3` --name "mqtt2influxdb" -- `which mqtt2influxdb` -c /etc/bigclown/mqtt2influxdb.yml
 
 - name:  Saving status
-  shell: pm2 save
+  shell: /home/{{ ansible_user_id }}/.npm/vendor/node_modules/bin/pm2 save
