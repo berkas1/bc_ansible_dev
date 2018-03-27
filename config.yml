@@ -1,0 +1,14 @@
+---
+base_packages:
+  - apt-transport-https
+  - curl
+  - vim
+  - git
+  - adduser
+  - libfontconfig
+  - htop
+  - python3-pip
+  - ntp
+
+
+bc_system: "debian"

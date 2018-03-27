@@ -1,0 +1,125 @@
+---
+- name: "Installing packages"
+  apt:
+    name: "{{ base_packages }}"
+    state: latest
+    update_cache: true
+  become: true
+
+- name: "Adding APT KEY for influxDB"
+  apt_key:
+    url: https://repos.influxdata.com/influxdb.key
+    state: present
+  tags: ['apt']
+  become: true
+
+- name: "Adding repository for influxDB"
+  apt_repository:
+    repo: deb https://repos.influxdata.com/debian stretch stable
+    state: present
+  when: ansible_distribution in [ 'Debian', 'Raspbian']
+  tags: ['apt']
+  become: true
+
+- name: "Add repository for influxDB"
+  apt_repository:
+    repo: deb https://repos.influxdata.com/ubuntu/ xenial stable
+    state: present
+  when: ansible_distribution in [ 'Ubuntu' ]
+  tags: ['apt']
+  become: true
+
+
+# replace with https://github.com/nodesource/ansible-nodejs-role
+- name: Add repository for node.js
+  become: true
+  shell: curl -sL https://deb.nodesource.com/setup_9.x | bash -
+
+- name: Installing node.js
+  become: true
+  apt:
+    name: nodejs
+    state: latest
+    update_cache: true
+
+- name: "Install influxDB"
+  apt:
+    name: influxdb
+    state: present
+    update_cache: true
+  become: true
+
+- name: "Start influxdb"
+  systemd:
+    state: started
+    name: influxdb
+  become: true
+
+- name: "Installing Grafana (for RPi/Omnia)"
+  shell: "wget $(wget \"https://api.github.com/repos/fg2it/grafana-on-raspberry/releases/latest\" -q -O - | grep browser_download_url | grep armhf.deb | head -n 1 | cut -d '\"' -f 4) -O grafana.deb"
+  when: bc_system == "raspberry" or bc_system == "omnia"
+
+- name: "Installing Grafana (for RPi/Omnia)"
+  shell: sudo dpkg -i grafana.deb
+  when: bc_system == "raspberry" or bc_system == "omnia"
+
+- name: "Add repository key for Grafana"
+  become: true
+  apt_key:
+    url: https://packagecloud.io/gpg.key
+    state: present
+  when: bc_system == "debian" or bc_system == "ubuntu"
+
+- name: "Add repository for Grafana"
+  become: true
+  apt_repository:
+    repo: deb https://packagecloud.io/grafana/stable/debian/ stretch main
+    state: present
+  when: bc_system == "debian" or bc_system == "ubuntu"
+
+- name: Installing Grafana
+  become: true
+  apt:
+    name: grafana
+    state: present
+    update_cache: true
+  when: bc_system == "debian" or bc_system == "ubuntu"
+
+- name: systemd daemon reload
+  become: true
+  shell: systemctl daemon-reload
+
+- name: Starting grafana-server service
+  become: true
+  systemd:
+    name: grafana-server
+    enabled: yes
+    state: started
+
+- name: Installing mqtt for influxDB
+  become: true
+  shell: pip3 install --upgrade mqtt2influxdb
+
+- name: Installing pm2
+  shell: npm install pm2 -g
+
+- name: Create /etc/bigclown directory
+  become: true
+  file:
+    path: /etc/bigclown
+    state: directory
+
+- name: Add settings file
+  become: true
+  template:
+    dest: /etc/bigclown/mqtt2influxdb.yml
+    src: ../templates/mqtt2influxdb.yml
+
+- name: Testing configuration file
+  shell: mqtt2influxdb -c /etc/bigclown/mqtt2influxdb.yml --test
+
+- name: Starting mqtt
+  shell: pm2 start `which python3` --name "mqtt2influxdb" -- `which mqtt2influxdb` -c /etc/bigclown/mqtt2influxdb.yml
+
+- name:  Saving status
+  shell: pm2 save

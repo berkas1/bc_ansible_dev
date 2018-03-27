@@ -1,0 +1,7 @@
+---
+- name: Setup Grafana environment
+  hosts: all
+  vars_files:
+    - config.yml
+  roles:
+    - base
