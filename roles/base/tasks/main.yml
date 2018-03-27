@@ -100,6 +100,9 @@
   become: true
   shell: pip3 install --upgrade mqtt2influxdb
 
+- name: NPM cache clear
+  shell: npm cache clear --force && npm install --no-shrinkwrap --update-binary 
+
 - name: Setting up correct .npm folder owner
   become: true
   file:
